@@ -247,11 +247,14 @@ methods
     %   TIMINGDELAY is a scalar, representing the delay in AWN waveform.
 
         interWfm = zeros(obj.NumIWNNodes,length(awnWaveform));
+        
         for j = 1:obj.NumIWNNodes
+            
             if obj.IWN(j).CollisionProbability > 0 && obj.IWN(j).CollisionProbability <= 1
                 numZerosAppended = ceil(timingDelay)+...
                     ceil(length(awnWaveform(ceil(timingDelay)+1:end))*(1-obj.IWN(j).CollisionProbability));
                 iwnWaveformAppended = [zeros(numZerosAppended,1);iwnWaveform{j}];
+                
                 if length(iwnWaveformAppended) < length(awnWaveform)
                     iwnWaveformAppended = [iwnWaveformAppended;...
                         zeros(length(awnWaveform)-length(iwnWaveformAppended),1)];

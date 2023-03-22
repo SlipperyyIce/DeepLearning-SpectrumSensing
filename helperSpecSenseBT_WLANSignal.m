@@ -1,9 +1,9 @@
-function [txWaveInt,waveInfo,iwnConfig] = helperSpecSenseWLANSignal(timeShift)
+function [txWaveInt,waveInfo,iwnConfig] = helperSpecSenseBT_WLANSignal(numFreqPixels,timeShift)
 
 rng('shuffle');
-BtType = {'LE1M'};
-rand_index = randi(numel(BtType)); 
-awnSignalType = BtType{rand_index}; 
+BtType = {'LE1M',"LE2M","LE500K","LE125K"};
+rand_index = randi(numel(BtType)); % generate random index
+awnSignalType = BtType{rand_index}; % select random string
 awnTxPosition =  [0,0,0];    % In meters
 awnRxPosition =  [0,0,0];    % In meters
 awnTxPower = 30;       % In dBm
@@ -19,11 +19,17 @@ iwn(1).Frequency = 2437e6;         % In Hz
 iwn(1).TxPower = 30;               % In dBm
 iwn(1).CollisionProbability = 1;   % Probability of collision in time, must be between [0,1]
 
-iwn(2).SignalType = "LE1M";
-iwn(2).TxPosition = [25,0,0];      % In meters
-iwn(2).Frequency = 2420e6;         % In Hz
-iwn(2).TxPower = 30;               % In dBm
-iwn(2).CollisionProbability = 0.2; % Probability of collision in time, must be between [0,1]
+switch iwn(1).SignalType
+    case {'802.11b/g with 22 MHz Bandwidth'}
+        iwnBandwidth = 22e6;
+    case {'802.11g with 20 MHz Bandwidth',...
+        '802.11n with 20 MHz Bandwidth','802.11ax with 20 MHz Bandwidth', 'WLANHESUBandwidth20.bb'}
+        iwnBandwidth = 20e6;
+    case {'802.11n with 40 MHz Bandwidth','802.11ax with 40 MHz Bandwidth'}
+        iwnBandwidth= 40e6;
+    otherwise
+        disp(iwn(1).SignalType);
+end
 
 switch iwn(1).SignalType
     case {'802.11b/g with 22 MHz Bandwidth'}
@@ -192,25 +198,12 @@ for inum = 1:numPackets
         txBits = randi([0 1],payloadLength*8,1,"int8");
         awnWaveform = bleWaveformGenerator(int8(txBits),Mode=awnSignalType,ChannelIndex=channelIndex, ...
             SamplesPerSymbol=sps,AccessAddress=accessAddBits,DFPacketType=awnPacket);
-        freqOffset = comm.PhaseFrequencyOffset(...
-          'SampleRate',sampleRate);
-        
-        % Define WLAN channels in MHz
-        wlan_channels = [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472];
-        
-        % Choose random WLAN channel
-        channel_idx = randi(length(wlan_channels));
-        
-        freqOff = wlan_channels(channel_idx) * 1e6 - 2.402e9;
-        freqOffset.FrequencyOffset = freqOff;
-        % Shift waveform using freqOffset function
-        awnWaveform = freqOffset(awnWaveform);
     else
         if strcmp(awnFrequencyHopping,"On")
             inputClock = inputClock + clockTicks;
 
             % Frequency hopping
-            channelIndex = nextHop(frequencyHop,inputClock);
+            channelIndex = nextHop(frequencyHop,inputClock)
             awnFrequency = (2402+channelIndex)*1e6;
 
             % Generate whiten initialization vector from clock
@@ -240,9 +233,25 @@ for inum = 1:numPackets
     % Scale the waveform as per the transmitter power and path loss
     soiAmplitudeLinear = 10^((awnTxPower-30)/20)/awnPathloss;
     attenAWNWaveform = soiAmplitudeLinear*hopWaveform;
+
+    freqOffsetPhase = comm.PhaseFrequencyOffset(...
+  'SampleRate',sampleRate);
     
+    maxFreqShift = (sampleRate-awnBandwidth) / 2 - sampleRate/numFreqPixels;
+    freqOff = (2*rand()-1)*maxFreqShift;
+    freqOffsetPhase.FrequencyOffset = freqOff;
+    attenAWNWaveform = freqOffsetPhase(attenAWNWaveform);
+
+    freqOffsetPhase2 = comm.PhaseFrequencyOffset(...
+  'SampleRate',sampleRate);
+    maxFreqShift = (sampleRate-iwnBandwidth) / 2 - sampleRate/numFreqPixels;
+    freqOff = (2*rand()-1)*maxFreqShift;
+    freqOffsetPhase2.FrequencyOffset = freqOff;
+    iwnWaveformAlt = iwnWaveformPL;
+    iwnWaveformAlt{1} = freqOffsetPhase2(iwnWaveformPL{1});
+
     % Add IWN waveforms to AWN waveform
-    addIWN2AWN = addInterference(iwnConfig,attenAWNWaveform,iwnWaveformPL,timingOffset);
+    addIWN2AWN = addInterference(iwnConfig,attenAWNWaveform,iwnWaveformAlt,timingOffset);
 
     % Frequency shift the waveform by |-freqOffset|
     freqShiftWaveform = helperBLEFrequencyOffset(addIWN2AWN,sampleRate,-freqOffset);
@@ -328,14 +337,26 @@ for inum = 1:numPackets
             if inum == 1
                 sinr = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
             end
-            % spectrumAnalyzer(iwnWaveform{1})
+            
             
         end
 end
+freqOffset = comm.PhaseFrequencyOffset(...
+  'SampleRate',sampleRate);
 
-% txWaveInt = circshift(txWaveInt,floor(timeShift*1e-3*sampleRate));
-txWaveInt = circshift(iwnWaveform{1},floor(timeShift*1e-3*sampleRate));
+% Define WLAN channels in MHz
+wlan_channels = [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472];
 
+% Choose random WLAN channel
+channel_idx = randi(length(wlan_channels));
+
+freqOff = wlan_channels(channel_idx) * 1e6 - 2.402e9;
+freqOffset.FrequencyOffset = freqOff;
+% Shift waveform using freqOffset function
+%txWaveInt = freqOffset(rxBits);
+%txWaveInt = circshift(rxBits,floor(timeShift*1e-3*sampleRate));
+
+txWaveInt= freqShiftWaveform;
 waveInfo.Bandwidth = bandwidth;
 waveInfo.SampleRate = sampleRate;
 

@@ -1,4 +1,4 @@
-function [txWaveInt, freqOff] = helperSpecSenseBTSignal(timeShift,folder,idx,imageSize)
+function [txWaveInt, waveInfo] = helperSpecSenseBTSignal(timeShift)
 
 rng('shuffle');
 BtType = {'LE1M',"LE2M","LE500K","LE125K"};
@@ -10,6 +10,7 @@ awnTxPower = 30;       % In dBm
 awnPacket = "Disabled";
 awnFrequencyHopping = "Off";
 awnFrequency = 2440*1e6; % In Hz
+
 
 environment = "Outdoor";
 EbNo = 10;         % In dB
@@ -279,20 +280,17 @@ bt_channels = [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462,
 channel_idx = randi(length(bt_channels));
 
 % Calculate frequency offset required to shift waveform to chosen channel
-freqOff = bt_channels(channel_idx) * 1e6 - 2.402e9;
+freqOff = (bt_channels(channel_idx) * 1e6 - 2.402e9)/256;
 freqOffset.FrequencyOffset = freqOff;
 % Shift waveform using freqOffset function
-txWaveInt = freqOffset(attenAWNWaveform);
 
-txWaveInt = circshift(txWaveInt,floor(timeShift*1e-3*sampleRate));
-Nfft = 4096;
-rxSpectrogram = helperSpecSenseSpectrogramImage(txWaveInt,Nfft,sampleRate,imageSize);
+% txWaveInt = freqOffset(attenAWNWaveform);
+% txWaveInt = circshift(txWaveInt,floor(timeShift*1e-3*sampleRate));
+txWaveInt = circshift(attenAWNWaveform,floor(timeShift*1e-3*sampleRate));
 
-% Create file name
+waveInfo.SampleRate = sampleRate;
+waveInfo.Bandwidth = awnBandwidth;
 
-fname = ['BT_frame_', num2str(idx)];
-disp(idx);
-fname = fname + ".png";
-imwrite(rxSpectrogram, fname)
+
 
 end

@@ -22,6 +22,10 @@ combinedDir = fullfile(trainDir,'LTE_NR');
 if ~exist(combinedDir,'dir')
   mkdir(combinedDir)
 end
+combinedDir = fullfile(trainDir,'BT_WLAN');
+if ~exist(combinedDir,'dir')
+  mkdir(combinedDir)
+end
 
 files = dir(fullfile(combinedDir,'*.png'));
 
@@ -58,10 +62,15 @@ if exist("gcp","file")
 else
   numWorkers = 1;
 end
-frameIdx = 0;
+numFramesPerWorker = ceil(numFrames / numWorkers);
+
 tStart = tic;
- 
-  while frameIdx < numFrames
+parfor parIdx=1:numWorkers
+  frameIdx = maxFrameNum - numFramesPerWorker*(numWorkers-1) - numWorkers;
+  if frameIdx < 0
+    frameIdx = 0;
+  end
+  while frameIdx < numFramesPerWorker
     % Generate 5G signal
     scs = SCSVec(randi([1 length(SCSVec)])); %#ok<*PFBNS> 
     nrChBW = BandwidthVec(randi([1 length(BandwidthVec)]));
@@ -77,11 +86,11 @@ tStart = tic;
 
     % Generate BT signal
     timeShift = rand()*maxTimeShift;
-    [txWaveBT, BTFreqOff] = helperSpecSenseBTSignal(timeShift,trainDir,frameIdx,imageSize);
+    [txWaveBT, waveinfoBT] = helperSpecSenseBTSignal(timeShift);
     
     % Generate WLANsignal
     timeShift = rand()*maxTimeShift;
-    [txWaveWLAN, WLANFreqOff] = helperSpecSenseWLANSignal(timeShift);
+    [txWaveWLAN, waveinfoWLAN,iwnConfig] = helperSpecSenseWLANSignal(timeShift);
       
     % Decide on channel parameters
     SNRdB = SNRdBVec{randi([1 length(SNRdBVec)])};
@@ -101,9 +110,10 @@ tStart = tic;
     params5G.SNRdB = SNRdB;
     params5G.Doppler = Doppler;
     params5G.Info = waveinfo5G;
-    saveSpectrogramImage(rxWave5G,sr,trainDir,'NR',imageSize,frameIdx);
+    saveSpectrogramImage(rxWave5G,sr,trainDir,'NR',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfo5G.Bandwidth/2 +waveinfo5G.Bandwidth/2]';
-    savePixelLabelImage({[]}, freqPos, {'NR'}, {'Noise','NR','LTE'}, sr, params5G, trainDir, imageSize,frameIdx)
+    
+    savePixelLabelImage({[]}, freqPos, {'NR'}, {'Noise','NR','LTE'}, sr, params5G, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)))
 
     % Save channel impared LTE signal spectrogram and pixel labels
     rxWaveLTE = multipathChannelLTE(txWaveLTE,waveinfoLTE.SampleRate,Doppler);
@@ -118,9 +128,10 @@ tStart = tic;
     paramsLTE.TrBlkOff = TrBlkOff;
     paramsLTE.Doppler = Doppler;
     paramsLTE.Info = waveinfoLTE;
-    saveSpectrogramImage(rxWaveLTE,waveinfoLTE.SampleRate,trainDir,'LTE',imageSize,frameIdx);
+    saveSpectrogramImage(rxWaveLTE,waveinfoLTE.SampleRate,trainDir,'LTE',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfoLTE.Bandwidth/2 +waveinfoLTE.Bandwidth/2]';
-    savePixelLabelImage({[]}, freqPos, {'LTE'}, {'Noise','NR','LTE'}, waveinfoLTE.SampleRate, paramsLTE, trainDir, imageSize, frameIdx)
+    
+    savePixelLabelImage({[]}, freqPos, {'LTE'}, {'Noise','NR','LTE'}, waveinfoLTE.SampleRate, paramsLTE, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)))
 
     % Save channel impared 5G signal spectrogram and pixel labels
     sr = waveinfo5G.ResourceGrids.Info.SampleRate;
@@ -129,19 +140,27 @@ tStart = tic;
     rxWave5G = awgn(rxWave5G,SNRdB);
 
 
-    saveSpectrogramImage(rxWave5G,sr,trainDir,'NR',imageSize,frameIdx);
+    saveSpectrogramImage(rxWave5G,sr,trainDir,'NR',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfo5G.Bandwidth/2 +waveinfo5G.Bandwidth/2]';
-    savePixelLabelImage({[]}, freqPos, {'NR'}, {'Noise','NR','LTE'}, sr, params5G, trainDir, imageSize,frameIdx)
+    savePixelLabelImage({[]}, freqPos, {'NR'}, {'Noise','NR','LTE'}, sr, params5G, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)))
 
     % Save BT signal spectrogram and pixel labels
-    
+    rng('shuffle');
     SNRdB = SNRdBVec2{randi([1 length(SNRdBVec)])};
     rxWaveBT = awgn(txWaveBT,SNRdB);
-    
+    sr = waveinfoBT.SampleRate;
+    %look into multipathing?????
+    [rxWaveBT,freqOff] = shiftInFrequency(rxWaveBT,waveinfoBT.Bandwidth,sr,imageSize(2));
+    saveSpectrogramImage(rxWaveBT,sr,trainDir,'BT',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
+ 
+   
     % Save WLAN signal spectrogram and pixel labels
+    rng('shuffle');
     SNRdB = SNRdBVec2{randi([1 length(SNRdBVec)])};
     rxWaveWLAN = awgn(txWaveWLAN,SNRdB);
-    saveSpectrogramImage(rxWaveWLAN,sr,trainDir,'WLAN',imageSize,frameIdx);
+    sr = waveinfoWLAN.SampleRate;
+    [rxWaveWLAN,freqOff] = shiftInFrequency(rxWaveWLAN,waveinfoWLAN.Bandwidth,sr,imageSize(2));
+    saveSpectrogramImage(rxWaveWLAN,sr,trainDir,'WLAN',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
 
     % Save combined image
     assert(waveinfo5G.ResourceGrids.Info.SampleRate == waveinfoLTE.SampleRate)
@@ -192,17 +211,53 @@ tStart = tic;
     paramsComb.TrBlkOff = TrBlkOff;
     paramsComb.Doppler = Doppler;
     saveSpectrogramImage(rxWave,sr,fullfile(trainDir,'LTE_NR'),...
-      'LTE_NR',imageSize,frameIdx);
+      'LTE_NR',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = comb.FrequencyOffsets + bwMatrix;
     savePixelLabelImage({[],[]}, freqPos, labels, {'Noise','NR','LTE'}, ...
       sr, paramsComb, fullfile(trainDir,'LTE_NR'), imageSize, ...
-      frameIdx)
+      frameIdx+(numFramesPerWorker*(parIdx-1)))
+
+
+     % Decide on the frequency space between WLAN and BT
+    maxFreqSpace = (sr - waveinfoBT.Bandwidth - waveinfoWLAN.Bandwidth);
+    if maxFreqSpace < 0
+      continue
+    end
+    freqSpace = round(rand()*maxFreqSpace/1e6)*1e6;
+    freqPerPixel = sr / imageSize(2);
+    maxStartFreq = sr - (waveinfoBT.Bandwidth + waveinfoWLAN.Bandwidth + freqSpace) - freqPerPixel;
+
+
+    % Add noise
+    %rxWave = awgn(rxWave,SNRdB);
+
+    %saveSpectrogramImage(rxWave,sr,fullfile(trainDir,'BT_WLAN'),...
+    %  'BT_WLAN',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
+
+    % Generate WLANsignal
+    rng('shuffle');
+    timeShift = rand()*maxTimeShift;
+    [txWave, ~,~] = helperSpecSenseBT_WLANSignal(imageSize(2),timeShift);
+    % Add noise
+    rxWave = awgn(txWave,SNRdB);
+     saveSpectrogramImage(rxWave,sr,fullfile(trainDir,'BT_WLAN'),...
+      'BT_WLAN',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
+
 
     frameIdx = frameIdx + 1;
-    
+    if mod(frameIdx,10) == 0
+      elapsedTime = seconds(toc(tStart));
+      elapsedTime.Format = "hh:mm:ss";
+      disp(string(elapsedTime) + ": Worker " + parIdx + ...
+        " generated "  + frameIdx + " frames")
+    end
   end
+  elapsedTime = seconds(toc(tStart));
+  elapsedTime.Format = "hh:mm:ss";
+  disp(string(elapsedTime) + ": Worker " + parIdx + ...
+    " generated "  + frameIdx + " frames")
 end
-
+end
 
 % Helper Functions
 function [y,freqOff] = shiftInFrequency(x, bw, sr, numFreqPixels)
