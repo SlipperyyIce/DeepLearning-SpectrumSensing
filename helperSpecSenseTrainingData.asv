@@ -275,7 +275,7 @@ parfor parIdx=1:numWorkers
       'BT_BT',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
 
     savePixelLabelImage({[],[]}, freqPos, {'BT','BT'}, {'Noise','NR','LTE','BT','WLAN'}, ...
-      waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
+      waveinfoDoubleBT.SampleRate, paramsComb3, fullfile(trainDir,'BT_WLAN'), imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)))
 
 
@@ -367,9 +367,6 @@ else
   lbl = 'LTE_NR';
   if strcmp(label{1}, "BT")
       lbl = 'BT_WLAN';
-  end
-  if strcmp(label{1}, "BT") && strcmp(label{2}, "BT") 
-      lbl = 'BT_BT';
   end
 end
 fname = fullfile(folder, [lbl '_frame_' strrep(num2str(idx),' ','')]);

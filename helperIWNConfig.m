@@ -78,7 +78,7 @@ methods
                     channelIndexArray = [37 0:10 38 11:36 39];
                     channelIndex = channelIndexArray((obj.IWN(i).Frequency-2402e6)/2e6+1);
                     payloadLength = 255;
-                    data = randi([0 1],payloadLength*8,1,'int8');
+                    data = randi([0 1],payloadLength*8,1,'int8'); 
                     phyFactor = 1+strcmp(obj.IWN(i).SignalType,'LE2M');
                     sps = obj.SampleRate/(phyFactor*1e6);
                     accAddress = '01234567';

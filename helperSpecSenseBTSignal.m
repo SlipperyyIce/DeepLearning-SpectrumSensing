@@ -141,6 +141,7 @@ if strcmp(awnFrequencyHopping,"On")
     errorsBasic(:,1) = (0:numBTChannels-1);
 end
 
+
 if strcmp(awnFrequencyHopping,"On") && collisionCount ~= 0
     sinr = zeros(numPackets,1);
 end
