@@ -278,6 +278,28 @@ parfor parIdx=1:numWorkers
       waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)))
 
+    
+
+    %Generate Combined BT + BT
+    rng('shuffle');
+    [txWave, waveinfoMultiBT,multi_label] = helperSpecSenseMultiBTSignal(imageSize(2));
+    % Add noise
+    rng('shuffle');
+    SNRdB = SNRdBVec3{randi([1 length(SNRdBVec3)])};
+    rxWave = awgn(txWave,SNRdB);
+    % Create spectrogram image
+    paramsComb3 = struct();
+    paramsComb3.BW = waveinfoMultiBT.Bandwidth;
+    paramsComb3.SNRdB = SNRdB;
+
+    saveSpectrogramImage(rxWave,sr,trainDir,...
+      'BTMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
+
+    savePixelLabelImage({[],[]}, freqPos, {'BT'}, {'Noise','NR','LTE','BT','WLAN'}, ...
+      waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
+      frameIdx+(numFramesPerWorker*(parIdx-1)))
+
+
 
 
 
