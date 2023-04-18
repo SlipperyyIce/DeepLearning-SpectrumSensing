@@ -50,7 +50,7 @@ TrBlkOffVec = {1,2,3,4,5,6,7,8};
 % Channel Parameters
 SNRdBVec = {40, 50, 100};   % dB
 SNRdBVec2 = {40, 50,60}; % db
-SNRdBVec3 = {30,40,50}; % db
+SNRdBVec3 = {20,30,40,50}; % db
 DopplerVec = {0, 10, 500};
 CenterFrequencyVec = 4e9;
 
@@ -279,7 +279,7 @@ parfor parIdx=1:numWorkers
 
     
 
-    %Generate Combined BT + BT
+    %Generate Random numbers of BT signals
     rng('shuffle');
     [txWave, waveinfoMultiBT,~,multi_label,timepos] = helperSpecSenseMultiBTSignal(imageSize(2));
     % Add noise
@@ -293,10 +293,33 @@ parfor parIdx=1:numWorkers
 
     saveSpectrogramImage(rxWave,sr,trainDir,...
       'BTMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
-    disp(waveinfoMultiBT.freqPos);
+    
     savePixelLabelImage(timepos, waveinfoMultiBT.freqPos, multi_label, {'Noise','NR','LTE','BT','WLAN'}, ...
-      waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
+      waveinfoMultiBT.SampleRate, paramsComb3, trainDir, imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)),1)
+
+    %Generate Rnadom numbers of WLAN + BT signals
+    rng('shuffle');
+    [txWave, waveinfoMultiWLAN,~,multi_label,timepos] = helperSpecSenseMultiWLANSignal(imageSize(2));
+    % Add noise
+    rng('shuffle');
+    SNRdB = SNRdBVec3{randi([1 length(SNRdBVec3)])};
+    rxWave = awgn(txWave,SNRdB);
+
+    % Create spectrogram image
+    paramsComb4 = struct();
+    paramsComb4.BW = waveinfoMultiWLAN.Bandwidth;
+    paramsComb4.SNRdB = SNRdB;
+
+    saveSpectrogramImage(rxWave,sr,trainDir,...
+      'WLANMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
+    
+    savePixelLabelImage(timepos, waveinfoMultiWLAN.freqPos, multi_label, {'Noise','NR','LTE','BT','WLAN'}, ...
+      waveinfoMultiWLAN.SampleRate, paramsComb4, trainDir, imageSize, ...
+      frameIdx+(numFramesPerWorker*(parIdx-1)),2)
+
+    
+
 
 
 
@@ -398,6 +421,9 @@ else
 
   if rngNoSignal == 1
     lbl = 'BTMULTI';
+  end
+  if rngNoSignal == 2
+    lbl = 'WLANMULTI';
   end
 end
 fname = fullfile(folder, [lbl '_frame_' strrep(num2str(idx),' ','')]);

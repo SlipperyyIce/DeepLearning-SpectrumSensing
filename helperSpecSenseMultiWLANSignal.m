@@ -1,41 +1,59 @@
-function [txWaveInt,waveInfo,iwnConfig] = helperSpecSenseWLANSignal(timeShift)
-
+function [txWaveInt,waveInfo,iwnConfig,label,timepos] = helperSpecSenseMultiWLANSignal(numFreqPixels)
+numFreqPixels = 256;
 rng('shuffle');
-BtType = {'LE1M'};
-rand_index = randi(numel(BtType)); 
-awnSignalType = BtType{rand_index}; 
+BtType = {'LE1M',"LE2M","LE500K","LE125K"};
+rand_index = randi(numel(BtType)); % generate random index
+awnSignalType = BtType{rand_index}; % select random string
 awnTxPosition =  [0,0,0];    % In meters
-awnRxPosition =  [20,0,0];    % In meters
+awnRxPosition =  [10,0,0];    % In meters
 awnTxPower = 30;       % In dBm
 awnPacket = "Disabled";
 awnFrequencyHopping = "Off";
 awnFrequency = 2440*1e6; % In Hz
 
+
+count = 0;
 iwnType = {"802.11b/g with 22 MHz Bandwidth","WLANHESUBandwidth20.bb","802.11g with 20 MHz Bandwidth","802.11n with 20 MHz Bandwidth","802.11n with 40 MHz Bandwidth","802.11ax with 20 MHz Bandwidth",'802.11ax with 40 MHz Bandwidth'};
-rand_index = randi(numel(iwnType)); 
-iwn(1).SignalType  = iwnType{rand_index}; 
-iwn(1).TxPosition = [20,0,0];      % In meters
-iwn(1).Frequency = 2437e6;         % In Hz
-iwn(1).TxPower = 15;               % In dBm
-iwn(1).CollisionProbability = 1;   % Probability of collision in time, must be between [0,1]
+iwnType2 = ["LE1M","LE2M","LE500K","LE125K","BR","EDR2M","EDR3M"];
+rand_rge = randi([1, 7]);
+for i = 1:rand_rge
+    rng('shuffle');
+    
+    if i == 1
+        rand_index = randi(numel(iwnType));
+    else
+        if randi([0 1], 1) == 1 && count == 0
+            rand_index = randi(numel(iwnType));
+            count = count + 1;
+        else
+            rand_index = randi(numel(iwnType2));
+        end
+    end
 
-iwn(2).SignalType = "LE1M";
-iwn(2).TxPosition = [25,0,0];      % In meters
-iwn(2).Frequency = 2420e6;         % In Hz
-iwn(2).TxPower = 30;               % In dBm
-iwn(2).CollisionProbability = 0.2; % Probability of collision in time, must be between [0,1]
+    iwn(i).SignalType  = iwnType{rand_index}; 
+    iwn(i).TxPosition = [15,0,0];      % In meters
+    iwn(i).Frequency = 2420e6;         % In Hz
+    iwn(i).TxPower = 30;               % In dBm
+    iwn(i).CollisionProbability = 0.2;   % Probability of collision in time, must be between [0,1]
 
-switch iwn(1).SignalType
-    case {'802.11b/g with 22 MHz Bandwidth'}
-        bandwidth = 22e6;
-    case {'802.11g with 20 MHz Bandwidth',...
-        '802.11n with 20 MHz Bandwidth','802.11ax with 20 MHz Bandwidth', 'WLANHESUBandwidth20.bb'}
-        bandwidth = 20e6;
-    case {'802.11n with 40 MHz Bandwidth','802.11ax with 40 MHz Bandwidth'}
-        bandwidth= 40e6;
-    otherwise
-        disp(iwn(1).SignalType);
+    
+    switch iwn(i).SignalType
+        case {'802.11b/g with 22 MHz Bandwidth'}
+            iwn(i).Bandwidth = 22e6;
+        case {'802.11g with 20 MHz Bandwidth',...
+            '802.11n with 20 MHz Bandwidth','802.11ax with 20 MHz Bandwidth', 'WLANHESUBandwidth20.bb'}
+            iwn(i).Bandwidth = 20e6;
+        case {'802.11n with 40 MHz Bandwidth','802.11ax with 40 MHz Bandwidth'}
+            iwn(i).Bandwidth= 40e6;
+        case {'LE1M','LE2M','LE500K','LE125K'}
+            iwn(i).Bandwidth = 2e6;
+        case {'BR','EDR2M','EDR3M'}
+            iwn(i).Bandwidth = 1e6;
+        otherwise
+            disp(iwn(1).SignalType);
+    end
 end
+
 environment = "Outdoor";
 EbNo = 10;         % In dB
 sampleRate = 80e6; % In Hz
@@ -135,19 +153,6 @@ codeRate = 1*any(strcmp(awnSignalType,["LE1M","LE2M"]))+1/2*strcmp(awnSignalType
 bitsPerSymbol = 1+ strcmp(awnSignalType,"EDR2M") + 2*(strcmp(awnSignalType,"EDR3M")); % Number of bits per symbol
 snr = EbNo + 10*log10(codeRate) + 10*log10(bitsPerSymbol) - 10*log10(sps);
 
-spectrumAnalyzer = dsp.SpectrumAnalyzer(...
-    Name="Bluetooth Coexistence Modeling", ...
-    ViewType="Spectrum and spectrogram", ...
-    TimeResolutionSource="Property", ...
-    TimeResolution=0.0005, ...
-    SampleRate=sampleRate, ...
-    TimeSpanSource="Property", ...
-    TimeSpan=0.05, ...
-    FrequencyResolutionMethod="WindowLength", ...
-    WindowLength=512, ...
-    AxesLayout="Horizontal", ...
-    YLimits=[-100 20], ...
-    ColorLimits=[-100 20]);
 
 % Classify the channels for every |numPacketsToClassify| packets. If the PER of the
 % channel is greater than |thresholdPER|, then map the corresponding channel
@@ -192,25 +197,12 @@ for inum = 1:numPackets
         txBits = randi([0 1],payloadLength*8,1,"int8");
         awnWaveform = bleWaveformGenerator(int8(txBits),Mode=awnSignalType,ChannelIndex=channelIndex, ...
             SamplesPerSymbol=sps,AccessAddress=accessAddBits,DFPacketType=awnPacket);
-        freqOffset = comm.PhaseFrequencyOffset(...
-          'SampleRate',sampleRate);
-        
-        % Define WLAN channels in MHz
-        wlan_channels = [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472];
-        
-        % Choose random WLAN channel
-        channel_idx = randi(length(wlan_channels));
-        
-        freqOff = wlan_channels(channel_idx) * 1e6 - 2.402e9;
-        freqOffset.FrequencyOffset = freqOff;
-        % Shift waveform using freqOffset function
-        awnWaveform = freqOffset(awnWaveform);
     else
         if strcmp(awnFrequencyHopping,"On")
             inputClock = inputClock + clockTicks;
 
             % Frequency hopping
-            channelIndex = nextHop(frequencyHop,inputClock);
+            
             awnFrequency = (2402+channelIndex)*1e6;
 
             % Generate whiten initialization vector from clock
@@ -222,8 +214,9 @@ for inum = 1:numPackets
     end
     
     % Add timing offset
-    timingOffset = randsrc(1,1,1:0.1:100);
+    timingOffset = 100;
     timingOffsetWaveform = helperBLEDelaySignal(awnWaveform,timingOffset);
+    
 
     % Add frequency offset
     freqOffsetImp = randsrc(1,1,-10e3:100:10e3);
@@ -240,9 +233,98 @@ for inum = 1:numPackets
     % Scale the waveform as per the transmitter power and path loss
     soiAmplitudeLinear = 10^((awnTxPower-30)/20)/awnPathloss;
     attenAWNWaveform = soiAmplitudeLinear*hopWaveform;
+
+    rng('shuffle');
+    freqOffsetPhase = comm.PhaseFrequencyOffset(...
+  'SampleRate',sampleRate);
     
+    maxFreqShift = (sampleRate-awnBandwidth) / 2 - sampleRate/numFreqPixels;
+    freqOff = [(2*rand()-1)*maxFreqShift];
+    freqOffsetPhase.FrequencyOffset = freqOff(1);
+    attenAWNWaveform = freqOffsetPhase(attenAWNWaveform);
+    
+    rng('shuffle');
+    rng_delay = -rand() * 30100;
+    attenAWNWaveform = delayseq(attenAWNWaveform,rng_delay);
+    iwnWaveformAlt = iwnWaveformPL;  
+
+    if rand_rge >= 1
+        rng('shuffle');
+        freqOffset1.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(1).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        
+        freqOffset1.Phase.FrequencyOffset = freqOff(2);    
+        
+        iwnWaveformAlt{1} = delayseq(iwnWaveformAlt{1},-1100);
+        iwnWaveformAlt{1} = freqOffset1.Phase(iwnWaveformAlt{1});          
+    end
+
+    if rand_rge >= 2
+        rng('shuffle');
+        freqOffset2.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(2).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        freqOffset2.Phase.FrequencyOffset = freqOff(3);      
+        
+        iwnWaveformAlt{2} = freqOffset2.Phase(iwnWaveformAlt{2});
+    end
+
+    if rand_rge >= 3
+        rng('shuffle');
+        freqOffset3.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(3).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        freqOffset3.Phase.FrequencyOffset = freqOff(4);      
+        iwnWaveformAlt{3} = freqOffset3.Phase(iwnWaveformAlt{3});
+    end
+    
+    if rand_rge >= 4
+        rng('shuffle');
+        freqOffset4.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(4).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        freqOffset4.Phase.FrequencyOffset = freqOff(5);      
+        iwnWaveformAlt{4} = freqOffset4.Phase(iwnWaveformAlt{4});
+    end
+    
+    if rand_rge >= 5
+        rng('shuffle');
+        freqOffset5.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(5).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        freqOffset5.Phase.FrequencyOffset = freqOff(6);      
+        iwnWaveformAlt{5} = freqOffset5.Phase(iwnWaveformAlt{5});
+    end
+    
+    if rand_rge >= 6
+        rng('shuffle');
+        freqOffset6.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(6).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        freqOffset6.Phase.FrequencyOffset = freqOff(7);      
+        iwnWaveformAlt{6} = freqOffset6.Phase(iwnWaveformAlt{6});
+    end
+    
+    if rand_rge >= 7
+        rng('shuffle');
+        freqOffset7.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(7).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = [freqOff,(2*rand()-1)*maxFreqShift];
+        freqOffset7.Phase.FrequencyOffset = freqOff(8);      
+        iwnWaveformAlt{7} = freqOffset7.Phase(iwnWaveformAlt{7});
+    end
+    
+
     % Add IWN waveforms to AWN waveform
-    addIWN2AWN = addInterference(iwnConfig,attenAWNWaveform,iwnWaveformPL,timingOffset);
+    addIWN2AWN = addInterference(iwnConfig,attenAWNWaveform,iwnWaveformAlt,8100);
 
     % Frequency shift the waveform by |-freqOffset|
     freqShiftWaveform = helperBLEFrequencyOffset(addIWN2AWN,sampleRate,-freqOffset);
@@ -323,20 +405,56 @@ for inum = 1:numPackets
         % Visualize the spectrum and spectrogram. Compute SINR.
         if strcmp(awnFrequencyHopping,"On") && collisionCount ~= 0
             sinr(inum) = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
-            % spectrumAnalyzer(iwnWaveform{1})
+            
         elseif (strcmp(awnFrequencyHopping,"Off") && inum < 70) || (strcmp(awnFrequencyHopping,"On") && collisionCount == 0)
             if inum == 1
                 sinr = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
             end
-            % spectrumAnalyzer(iwnWaveform{1})
+            
             
         end
 end
 
-% txWaveInt = circshift(txWaveInt,floor(timeShift*1e-3*sampleRate));
-txWaveInt = circshift(iwnWaveform{1},floor(timeShift*1e-3*sampleRate));
+txWaveInt= freqShiftWaveform;
 
-waveInfo.Bandwidth = bandwidth;
+label = {};
+timepos = {[]};
+% Loop through integer range and add 'BT' strings to cell array
+for i = 1:rand_rge + 1
+    label{i} = 'BT';    
+end
+for i = 1:count + 1
+    label{i} = 'WLAN';    
+end
+
+
+waveInfo.Bandwidth =  [-awnBandwidth/2 +awnBandwidth/2;];
+
+for i = 1:rand_rge
+    timepos = [timepos, {[]}];
+    new_element = [-iwn(i).Bandwidth/2 +iwn(i).Bandwidth/2];
+    waveInfo.Bandwidth = [waveInfo.Bandwidth, new_element];
+end
+
+Bandwidths = [iwn.Bandwidth, awnBandwidth];
+[~, sortedIndices] = sort(freqOff); %%WRTE FRQ OFF UP
+Bandwidths = Bandwidths(sortedIndices);
+
+maxFreqSpace = (sampleRate - max(Bandwidths) - min(Bandwidths));
+freqPerPixel = sampleRate / numFreqPixels;
+freqSpace = round(rand()*maxFreqSpace/1e6)*1e6;
+maxStartFreq = sampleRate - (max(Bandwidths) + min(Bandwidths) + freqSpace) - freqPerPixel;
+
+for i = 1:numel(Bandwidths)
+    bMatrix(i,:) = [-Bandwidths(i)/2 +Bandwidths(i)/2];
+end
+
+
+startFreq = round(rand()*maxStartFreq/1e6)*1e6 - sampleRate/2 + min(Bandwidths)/2;
+
+FrequencyOffsets = [startFreq startFreq+max(Bandwidths)/2 + freqSpace + min(Bandwidths)/2];
+waveInfo.freqPos = FrequencyOffsets + bMatrix;
+
 waveInfo.SampleRate = sampleRate;
 
 
