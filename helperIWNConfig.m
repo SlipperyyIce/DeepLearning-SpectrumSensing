@@ -254,8 +254,9 @@ methods
                 numZerosAppended = ceil(timingDelay)+...
                     ceil(length(awnWaveform(ceil(timingDelay)+1:end))*(1-obj.IWN(j).CollisionProbability));
                 iwnWaveformAppended = [zeros(numZerosAppended,1);iwnWaveform{j}];
-
-                iwnWaveformAppended = delayseq(iwnWaveformAppended,-30100);
+                rng('shuffle');
+                rng_delay = -rand() * 30100;
+                iwnWaveformAppended = delayseq(iwnWaveformAppended,rng_delay);
                 
                 if length(iwnWaveformAppended) < length(awnWaveform)
                     iwnWaveformAppended = [iwnWaveformAppended;...

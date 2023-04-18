@@ -1,11 +1,11 @@
-function [txWaveInt,waveInfo,iwnConfig] = helperSpecSenseBT_WLANSignal(numFreqPixels,timeShift)
+function [txWaveInt,waveInfo,iwnConfig] = helperSpecSenseBT_WLANSignal(numFreqPixels)
 
 rng('shuffle');
 BtType = {'LE1M',"LE2M","LE500K","LE125K"};
 rand_index = randi(numel(BtType)); % generate random index
 awnSignalType = BtType{rand_index}; % select random string
 awnTxPosition =  [0,0,0];    % In meters
-awnRxPosition =  [0,0,0];    % In meters
+awnRxPosition =  [10,0,0];    % In meters
 awnTxPower = 30;       % In dBm
 awnPacket = "Disabled";
 awnFrequencyHopping = "Off";
@@ -202,10 +202,9 @@ for inum = 1:numPackets
         txBits = randi([0 1],payloadLength*8,1);
         awnWaveform = bluetoothWaveformGenerator(txBits,awnWaveformConfig);
     end
-    
     % Add timing offset
     timingOffset = randsrc(1,1,1:0.1:100);
-    timingOffsetWaveform = helperBLEDelaySignal(awnWaveform,timingOffset);
+    timingOffsetWaveform = helperBLEDelaySignal(awnWaveform,timingOffset); 
 
     % Add frequency offset
     freqOffsetImp = randsrc(1,1,-10e3:100:10e3);
@@ -222,20 +221,25 @@ for inum = 1:numPackets
     % Scale the waveform as per the transmitter power and path loss
     soiAmplitudeLinear = 10^((awnTxPower-30)/20)/awnPathloss;
     attenAWNWaveform = soiAmplitudeLinear*hopWaveform;
+    rng('shuffle');
+    rng_delay = -rand() * 30100;
+    attenAWNWaveform = delayseq(attenAWNWaveform,rng_delay);
 
     freqOffsetPhase = comm.PhaseFrequencyOffset(...
   'SampleRate',sampleRate);
     
     maxFreqShift = (sampleRate-awnBandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffsetPhase.FrequencyOffset = freqOff;
+    freqOff{1} = (2*rand()-1)*maxFreqShift;
+    freqOffsetPhase.FrequencyOffset = freqOff{1};
+    
     attenAWNWaveform = freqOffsetPhase(attenAWNWaveform);
 
     freqOffsetPhase2 = comm.PhaseFrequencyOffset(...
   'SampleRate',sampleRate);
     maxFreqShift = (sampleRate-iwnBandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffsetPhase2.FrequencyOffset = freqOff;
+    freqOff{2} = (2*rand()-1)*maxFreqShift;
+    
+    freqOffsetPhase2.FrequencyOffset = freqOff{2};
     iwnWaveformAlt = iwnWaveformPL;
     iwnWaveformAlt{1} = freqOffsetPhase2(iwnWaveformAlt{1});
 
@@ -330,26 +334,26 @@ for inum = 1:numPackets
             
         end
 end
-freqOffset = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
 
-% Define WLAN channels in MHz
-wlan_channels = [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472];
 
-% Choose random WLAN channel
-channel_idx = randi(length(wlan_channels));
+txWaveInt = freqShiftWaveform;
 
-freqOff = wlan_channels(channel_idx) * 1e6 - 2.402e9;
-freqOffset.FrequencyOffset = freqOff;
-% Shift waveform using freqOffset function
-%txWaveInt = freqOffset(rxBits);
-%txWaveInt = circshift(rxBits,floor(timeShift*1e-3*sampleRate));
-
-txWaveInt= freqShiftWaveform;
-startFreq = awnFrequency*1e6 - sampleRate/2 + awnBandwidth/2;
 waveInfo.Bandwidth =  [-awnBandwidth/2 +awnBandwidth/2; -iwnBandwidth/2 +iwnBandwidth/2]';
-FrequencyOffsets = [startFreq startFreq+awnBandwidth/2 + awnFrequency + iwnBandwidth/2];
-waveInfo.freqPos = FrequencyOffsets + awnBandwidth;
+maxFreqSpace = (sampleRate - awnBandwidth - iwnBandwidth);
+freqPerPixel = sampleRate / numFreqPixels;
+freqSpace = round(rand()*maxFreqSpace/1e6)*1e6;
+maxStartFreq = sampleRate - (awnBandwidth + iwnBandwidth + freqSpace) - freqPerPixel;
+
+if freqOff{1} < freqOff{2}  %BT first
+    startFreq = round(rand()*maxStartFreq/1e6)*1e6 - sampleRate/2 + awnBandwidth/2;
+    bMatrix = [-awnBandwidth/2 +awnBandwidth/2; -iwnBandwidth/2 +iwnBandwidth/2]';        
+else
+    startFreq = round(rand()*maxStartFreq/1e6)*1e6 - sampleRate/2 + iwnBandwidth/2;
+    bMatrix = [-iwnBandwidth/2 +iwnBandwidth/2; -awnBandwidth/2 +awnBandwidth/2]';
+end
+
+FrequencyOffsets = [startFreq startFreq+awnBandwidth/2 + freqSpace + iwnBandwidth/2];
+waveInfo.freqPos = FrequencyOffsets + bMatrix;
 
 
 waveInfo.SampleRate = sampleRate;

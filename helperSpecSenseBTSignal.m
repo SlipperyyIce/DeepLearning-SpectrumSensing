@@ -192,8 +192,6 @@ end
     soiAmplitudeLinear = 10^((awnTxPower-30)/20)/awnPathloss;
     attenAWNWaveform = soiAmplitudeLinear*hopWaveform;
     
-
-
     % Frequency shift the waveform by |-freqOffset|
     freqShiftWaveform = helperBLEFrequencyOffset(attenAWNWaveform,sampleRate,-freqOffset);
 

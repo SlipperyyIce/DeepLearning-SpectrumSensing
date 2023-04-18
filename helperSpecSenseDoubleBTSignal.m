@@ -224,15 +224,18 @@ for inum = 1:numPackets
   'SampleRate',sampleRate);
     
     maxFreqShift = (sampleRate-awnBandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffsetPhase.FrequencyOffset = freqOff;
+    freqOff{1} = (2*rand()-1)*maxFreqShift;
+    freqOffsetPhase.FrequencyOffset = freqOff{1};
     attenAWNWaveform = freqOffsetPhase(attenAWNWaveform);
+    rng('shuffle');
+    rng_delay = -rand() * 30100;
+    attenAWNWaveform = delayseq(attenAWNWaveform,rng_delay);
 
     freqOffsetPhase2 = comm.PhaseFrequencyOffset(...
   'SampleRate',sampleRate);
     maxFreqShift = (sampleRate-iwnBandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffsetPhase2.FrequencyOffset = freqOff;
+    freqOff{2} = (2*rand()-1)*maxFreqShift;
+    freqOffsetPhase2.FrequencyOffset = freqOff{2};
     iwnWaveformAlt = iwnWaveformPL;
     iwnWaveformAlt{1} = freqOffsetPhase2(iwnWaveformAlt{1});
 
@@ -330,14 +333,26 @@ end
 
 
 txWaveInt= freqShiftWaveform;
-startFreq = awnFrequency*1e6 - sampleRate/2 + awnBandwidth/2;
 waveInfo.Bandwidth =  [-awnBandwidth/2 +awnBandwidth/2; -iwnBandwidth/2 +iwnBandwidth/2]';
-FrequencyOffsets = [startFreq startFreq+awnBandwidth/2 + awnFrequency + iwnBandwidth/2];
-waveInfo.freqPos = FrequencyOffsets + awnBandwidth;
+
+maxFreqSpace = (sampleRate - awnBandwidth - iwnBandwidth);
+freqPerPixel = sampleRate / numFreqPixels;
+freqSpace = round(rand()*maxFreqSpace/1e6)*1e6;
+maxStartFreq = sampleRate - (awnBandwidth + iwnBandwidth + freqSpace) - freqPerPixel;
+
+if freqOff{1} < freqOff{2}  %BT first
+    startFreq = round(rand()*maxStartFreq/1e6)*1e6 - sampleRate/2 + awnBandwidth/2;
+    bMatrix = [-awnBandwidth/2 +awnBandwidth/2; -iwnBandwidth/2 +iwnBandwidth/2]';        
+else
+    startFreq = round(rand()*maxStartFreq/1e6)*1e6 - sampleRate/2 + iwnBandwidth/2;
+    bMatrix = [-iwnBandwidth/2 +iwnBandwidth/2; -awnBandwidth/2 +awnBandwidth/2]';
+end
+
+FrequencyOffsets = [startFreq startFreq+awnBandwidth/2 + freqSpace + iwnBandwidth/2];
+waveInfo.freqPos = FrequencyOffsets + bMatrix;
 
 
 waveInfo.SampleRate = sampleRate;
-
 
 
 end

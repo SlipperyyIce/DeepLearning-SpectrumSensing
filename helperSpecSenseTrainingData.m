@@ -50,7 +50,7 @@ TrBlkOffVec = {1,2,3,4,5,6,7,8};
 % Channel Parameters
 SNRdBVec = {40, 50, 100};   % dB
 SNRdBVec2 = {40, 50,60}; % db
-SNRdBVec3 = {0, 10,20,40}; % db
+SNRdBVec3 = {30,40,50}; % db
 DopplerVec = {0, 10, 500};
 CenterFrequencyVec = 4e9;
 
@@ -124,7 +124,7 @@ parfor parIdx=1:numWorkers
     saveSpectrogramImage(rxWave5G,sr,trainDir,'NR',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfo5G.Bandwidth/2 +waveinfo5G.Bandwidth/2]';
     
-    savePixelLabelImage({[]}, freqPos, {'NR'}, {'Noise','NR','LTE','BT','WLAN'}, sr, params5G, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)))
+    savePixelLabelImage({[]}, freqPos, {'NR'}, {'Noise','NR','LTE','BT','WLAN'}, sr, params5G, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)),0)
 
     % Save channel impared LTE signal spectrogram and pixel labels
     rxWaveLTE = multipathChannelLTE(txWaveLTE,waveinfoLTE.SampleRate,Doppler);
@@ -144,7 +144,7 @@ parfor parIdx=1:numWorkers
     saveSpectrogramImage(rxWaveLTE,waveinfoLTE.SampleRate,trainDir,'LTE',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfoLTE.Bandwidth/2 +waveinfoLTE.Bandwidth/2]';
     
-    savePixelLabelImage({[]}, freqPos, {'LTE'}, {'Noise','NR','LTE','BT','WLAN'}, waveinfoLTE.SampleRate, paramsLTE, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)))
+    savePixelLabelImage({[]}, freqPos, {'LTE'}, {'Noise','NR','LTE','BT','WLAN'}, waveinfoLTE.SampleRate, paramsLTE, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)),0)
 
 
     % Save BT signal spectrogram and pixel labels
@@ -163,7 +163,7 @@ parfor parIdx=1:numWorkers
     saveSpectrogramImage(rxWaveBT,sr,trainDir,'BT',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfoBT.Bandwidth/2 +waveinfoBT.Bandwidth/2]';
 
-    savePixelLabelImage({[]}, freqPos, {'BT'}, {'Noise','NR','LTE','BT','WLAN'}, waveinfoBT.SampleRate, paramsBT, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1))) 
+    savePixelLabelImage({[]}, freqPos, {'BT'}, {'Noise','NR','LTE','BT','WLAN'}, waveinfoBT.SampleRate, paramsBT, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)),0) 
    
     % Save WLAN signal spectrogram and pixel labels
     rng('shuffle');
@@ -179,7 +179,7 @@ parfor parIdx=1:numWorkers
     saveSpectrogramImage(rxWaveWLAN,sr,trainDir,'WLAN',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     freqPos = freqOff' + [-waveinfoWLAN.Bandwidth/2 +waveinfoWLAN.Bandwidth/2]';
 
-    savePixelLabelImage({[]}, freqPos, {'WLAN'}, {'Noise','NR','LTE','BT','WLAN'}, waveinfoWLAN.SampleRate, paramsWLAN, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1))) 
+    savePixelLabelImage({[]}, freqPos, {'WLAN'}, {'Noise','NR','LTE','BT','WLAN'}, waveinfoWLAN.SampleRate, paramsWLAN, trainDir, imageSize, frameIdx+(numFramesPerWorker*(parIdx-1)),0) 
    
 
     % Save combined image
@@ -235,12 +235,11 @@ parfor parIdx=1:numWorkers
     freqPos = comb.FrequencyOffsets + bwMatrix;
     savePixelLabelImage({[],[]}, freqPos, labels, {'Noise','NR','LTE','BT','WLAN'}, ...
       sr, paramsComb, fullfile(trainDir,'LTE_NR'), imageSize, ...
-      frameIdx+(numFramesPerWorker*(parIdx-1)))
+      frameIdx+(numFramesPerWorker*(parIdx-1)),0)
 
     %Generate Combined WLAN + BT
     rng('shuffle');
-    timeShift = rand()*maxTimeShift;
-    [txWave, waveinfoBT_WLAN,~] = helperSpecSenseBT_WLANSignal(imageSize(2),timeShift);
+    [txWave, waveinfoBT_WLAN,~] = helperSpecSenseBT_WLANSignal(imageSize(2));
     % Add noise
     rng('shuffle');
     SNRdB = SNRdBVec3{randi([1 length(SNRdBVec3)])};
@@ -255,7 +254,7 @@ parfor parIdx=1:numWorkers
 
     savePixelLabelImage({[],[]}, freqPos, {'BT','WLAN'}, {'Noise','NR','LTE','BT','WLAN'}, ...
       waveinfoBT_WLAN.SampleRate, paramsComb2, fullfile(trainDir,'BT_WLAN'), imageSize, ...
-      frameIdx+(numFramesPerWorker*(parIdx-1)))
+      frameIdx+(numFramesPerWorker*(parIdx-1)),0)
 
 
     %Generate Combined BT + BT
@@ -276,13 +275,13 @@ parfor parIdx=1:numWorkers
 
     savePixelLabelImage({[],[]}, freqPos, {'BT','BT'}, {'Noise','NR','LTE','BT','WLAN'}, ...
       waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
-      frameIdx+(numFramesPerWorker*(parIdx-1)))
+      frameIdx+(numFramesPerWorker*(parIdx-1)),0)
 
     
 
     %Generate Combined BT + BT
     rng('shuffle');
-    [txWave, waveinfoMultiBT,multi_label] = helperSpecSenseMultiBTSignal(imageSize(2));
+    [txWave, waveinfoMultiBT,~,multi_label,timepos] = helperSpecSenseMultiBTSignal(imageSize(2));
     % Add noise
     rng('shuffle');
     SNRdB = SNRdBVec3{randi([1 length(SNRdBVec3)])};
@@ -294,10 +293,10 @@ parfor parIdx=1:numWorkers
 
     saveSpectrogramImage(rxWave,sr,trainDir,...
       'BTMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
-
-    savePixelLabelImage({[],[]}, freqPos, {'BT'}, {'Noise','NR','LTE','BT','WLAN'}, ...
+    disp(waveinfoMultiBT.freqPos);
+    savePixelLabelImage(timepos, waveinfoMultiBT.freqPos, multi_label, {'Noise','NR','LTE','BT','WLAN'}, ...
       waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
-      frameIdx+(numFramesPerWorker*(parIdx-1)))
+      frameIdx+(numFramesPerWorker*(parIdx-1)),1)
 
 
 
@@ -369,17 +368,19 @@ fname = fname + ".png";
 imwrite(rxSpectrogram, fname)
 end
 
-function savePixelLabelImage(timePos, freqPos, label, pixelClassNames, sr, params, folder, imSize, idx)
+function savePixelLabelImage(timePos, freqPos, label, pixelClassNames, sr, params, folder, imSize, idx, rngNoSignal)
 data = uint8(zeros(imSize));
 for p=1:length(label)
   pixelValue = floor((find(strcmp(label{p}, pixelClassNames))-1)*255/(numel(pixelClassNames)-1));
-
   freqPerPixel = sr / imSize(2);
-  freqPixels = floor((sr/2 + freqPos(:,p)) / freqPerPixel) + 1;
+  %freqPixels = floor((sr/2 + freqPos(:,p)) / freqPerPixel) + 1; %FIX BRO
+  
+  
   if isempty(timePos{p})
-    timePixels = 1:imSize(1);
+   timePixels = 1:imSize(1);
   end
-  data(timePixels,freqPixels(1):freqPixels(2)) = uint8(pixelValue);
+  %data(timePixels,freqPixels(1):freqPixels(2)) = uint8(pixelValue);
+
 end
 
 % Create file name
@@ -387,11 +388,16 @@ if numel(label) == 1
   lbl = label{1};
 else
   lbl = 'LTE_NR';
+
   if strcmp(label{1}, "BT")
       lbl = 'BT_WLAN';
   end
   if strcmp(label{1}, "BT") && strcmp(label{2}, "BT") 
       lbl = 'BT_BT';
+  end
+
+  if rngNoSignal == 1
+    lbl = 'BTMULTI';
   end
 end
 fname = fullfile(folder, [lbl '_frame_' strrep(num2str(idx),' ','')]);
