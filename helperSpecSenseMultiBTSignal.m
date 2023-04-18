@@ -13,7 +13,7 @@ awnFrequency = 2440*1e6; % In Hz
 
 iwnType = ["LE1M","LE2M","LE500K","LE125K","BR","EDR2M","EDR3M"];
 rand_rge = randi([1, 7]);
-rand_rge = 1;
+
 for i = 1:rand_rge
     rng('shuffle');
     rand_index = randi(numel(iwnType)); 
@@ -229,88 +229,86 @@ for inum = 1:numPackets
     freqOff = (2*rand()-1)*maxFreqShift;
     freqOffsetPhase.FrequencyOffset = freqOff;
     attenAWNWaveform = freqOffsetPhase(attenAWNWaveform);
-    attenAWNWaveform = delayseq(attenAWNWaveform,-2100);
-    iwnWaveformAlt = iwnWaveformPL;   
+    attenAWNWaveform = delayseq(attenAWNWaveform,-30100);
+    iwnWaveformAlt = iwnWaveformPL;  
+
     if rand_rge >= 1
-    rng('shuffle');
-    freqOffset1.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(1).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
+        rng('shuffle');
+        freqOffset1.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(1).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        
+        freqOffset1.Phase.FrequencyOffset = freqOff;    
+        
+        iwnWaveformAlt{1} = delayseq(iwnWaveformAlt{1},-1100);
+        iwnWaveformAlt{1} = freqOffset1.Phase(iwnWaveformAlt{1});          
+    end
+
+    if rand_rge >= 2
+        rng('shuffle');
+        freqOffset2.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(2).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        freqOffset2.Phase.FrequencyOffset = freqOff;      
+        
+        iwnWaveformAlt{2} = freqOffset2.Phase(iwnWaveformAlt{2});
+    end
+
+    if rand_rge >= 3
+        rng('shuffle');
+        freqOffset3.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(3).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        freqOffset3.Phase.FrequencyOffset = freqOff;      
+        iwnWaveformAlt{3} = freqOffset3.Phase(iwnWaveformAlt{3});
+    end
     
-    freqOffset1.Phase.FrequencyOffset = freqOff;    
+    if rand_rge >= 4
+        rng('shuffle');
+        freqOffset4.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(4).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        freqOffset4.Phase.FrequencyOffset = freqOff;      
+        iwnWaveformAlt{4} = freqOffset4.Phase(iwnWaveformAlt{4});
+    end
     
-
-    iwnWaveformAlt{1} = freqOffset1.Phase(iwnWaveformAlt{1});
+    if rand_rge >= 5
+        rng('shuffle');
+        freqOffset5.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(5).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        freqOffset5.Phase.FrequencyOffset = freqOff;      
+        iwnWaveformAlt{5} = freqOffset5.Phase(iwnWaveformAlt{5});
+    end
     
+    if rand_rge >= 6
+        rng('shuffle');
+        freqOffset6.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(6).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        freqOffset6.Phase.FrequencyOffset = freqOff;      
+        iwnWaveformAlt{6} = freqOffset6.Phase(iwnWaveformAlt{6});
+    end
     
-    
-end
-
-if rand_rge >= 2
-    rng('shuffle');
-    freqOffset2.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(2).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffset2.Phase.FrequencyOffset = freqOff;      
-    
-    iwnWaveformAlt{2} = freqOffset2.Phase(iwnWaveformAlt{2});
-end
-
-if rand_rge >= 3
-    rng('shuffle');
-    freqOffset3.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(3).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffset3.Phase.FrequencyOffset = freqOff;      
-    iwnWaveformAlt{3} = freqOffset3.Phase(iwnWaveformAlt{3});
-end
-
-if rand_rge >= 4
-    rng('shuffle');
-    freqOffset4.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(4).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffset4.Phase.FrequencyOffset = freqOff;      
-    iwnWaveformAlt{4} = freqOffset4.Phase(iwnWaveformAlt{4});
-end
-
-if rand_rge >= 5
-    rng('shuffle');
-    freqOffset5.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(5).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffset5.Phase.FrequencyOffset = freqOff;      
-    iwnWaveformAlt{5} = freqOffset5.Phase(iwnWaveformAlt{5});
-end
-
-if rand_rge >= 6
-    rng('shuffle');
-    freqOffset6.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(6).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffset6.Phase.FrequencyOffset = freqOff;      
-    iwnWaveformAlt{6} = freqOffset6.Phase(iwnWaveformAlt{6});
-end
-
-if rand_rge >= 7
-    rng('shuffle');
-    freqOffset7.Phase = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-    maxFreqShift = (sampleRate-iwn(7).Bandwidth) / 2 - sampleRate/numFreqPixels;
-    freqOff = (2*rand()-1)*maxFreqShift;
-    freqOffset7.Phase.FrequencyOffset = freqOff;      
-    iwnWaveformAlt{7} = freqOffset7.Phase(iwnWaveformAlt{7});
-end
+    if rand_rge >= 7
+        rng('shuffle');
+        freqOffset7.Phase = comm.PhaseFrequencyOffset(...
+      'SampleRate',sampleRate);
+        maxFreqShift = (sampleRate-iwn(7).Bandwidth) / 2 - sampleRate/numFreqPixels;
+        freqOff = (2*rand()-1)*maxFreqShift;
+        freqOffset7.Phase.FrequencyOffset = freqOff;      
+        iwnWaveformAlt{7} = freqOffset7.Phase(iwnWaveformAlt{7});
+    end
     
 
     % Add IWN waveforms to AWN waveform
-    addIWN2AWN = addInterference(iwnConfig,attenAWNWaveform,iwnWaveformAlt,0);
+    addIWN2AWN = addInterference(iwnConfig,attenAWNWaveform,iwnWaveformAlt,8100);
 
     % Frequency shift the waveform by |-freqOffset|
     freqShiftWaveform = helperBLEFrequencyOffset(addIWN2AWN,sampleRate,-freqOffset);
@@ -391,7 +389,7 @@ end
         % Visualize the spectrum and spectrogram. Compute SINR.
         if strcmp(awnFrequencyHopping,"On") && collisionCount ~= 0
             sinr(inum) = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
-            % spectrumAnalyzer(iwnWaveform{1})
+            
         elseif (strcmp(awnFrequencyHopping,"Off") && inum < 70) || (strcmp(awnFrequencyHopping,"On") && collisionCount == 0)
             if inum == 1
                 sinr = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
@@ -400,30 +398,15 @@ end
             
         end
 end
-freqOffset = comm.PhaseFrequencyOffset(...
-  'SampleRate',sampleRate);
-
-% Define WLAN channels in MHz
-wlan_channels = [2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472];
-
-% Choose random WLAN channel
-channel_idx = randi(length(wlan_channels));
-
-freqOff = wlan_channels(channel_idx) * 1e6 - 2.402e9;
-freqOffset.FrequencyOffset = freqOff;
-% Shift waveform using freqOffset function
-%txWaveInt = freqOffset(rxBits);
-%txWaveInt = circshift(rxBits,floor(timeShift*1e-3*sampleRate));
-
 
 txWaveInt= freqShiftWaveform;
 startFreq = awnFrequency*1e6 - sampleRate/2 + awnBandwidth/2;
 waveInfo.Bandwidth =  [-awnBandwidth/2 +awnBandwidth/2;]';
 FrequencyOffsets = [startFreq startFreq+awnBandwidth/2 + awnFrequency];
-label = {'BT'};
-for i = 1:rand_rge
-    
-    label{i+1} = 'BT';
+label = {};
+% Loop through integer range and add 'BT' strings to cell array
+for i = 1:rand_rge + 1
+    label{i} = 'BT';
 end
 
 waveInfo.freqPos = FrequencyOffsets + awnBandwidth;
