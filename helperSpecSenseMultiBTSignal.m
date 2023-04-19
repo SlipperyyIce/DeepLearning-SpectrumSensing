@@ -12,7 +12,8 @@ awnFrequencyHopping = "Off";
 awnFrequency = 2440*1e6; % In Hz
 
 iwnType = ["LE1M","LE2M","LE500K","LE125K","BR","EDR2M","EDR3M"];
-rand_rge = randi([1, 7]);
+rand_rge = randi([1, 6]);
+
 for i = 1:rand_rge
     rng('shuffle');
     rand_index = randi(numel(iwnType)); 
@@ -315,90 +316,6 @@ for inum = 1:numPackets
     % Frequency shift the waveform by |-freqOffset|
     freqShiftWaveform = helperBLEFrequencyOffset(addIWN2AWN,sampleRate,-freqOffset);
 
-    % Add AWGN
-    soiPower = 20*log10(soiAmplitudeLinear);
-    noisePower = soiPower - snr;
-    splusibyn = 10*log10(var(freqShiftWaveform))-noisePower;
-    noisyWaveform = awgn(freqShiftWaveform,splusibyn,"measured");
-
-    % Apply filter
-    if rem(length(noisyWaveform),sps)
-        remainder = sps-rem(length(noisyWaveform),sps);
-        noisyWaveform = [noisyWaveform;zeros(remainder,1)]; %#ok<AGROW> 
-    end
-    delay = floor(length(firdec.Numerator)/(2*decimationFactor));
-    noisyWaveformPadded = [noisyWaveform;zeros(delay*decimationFactor,1)];
-    filteredWaveform = firdec(noisyWaveformPadded);
-    release(firdec)
-    filteredWaveform = filteredWaveform(1+delay:end)*sqrt(decimationFactor);
-
-    % Recover the data bits
-    if any(strcmp(awnSignalType,["LE1M","LE2M","LE500K","LE125K"]))
-        rxCfg.ChannelIndex = channelIndex;
-        [rxBits,accAddress] = helperBLEPracticalReceiver(filteredWaveform,rxCfg);
-        if isempty(rxBits) || ~isequal(accessAddBits,accAddress)
-            pktStatus = [];
-        end
-    else
-        % Get PHY properties
-        rxCfg.WhitenInitialization = awnWaveformConfig.WhitenInitialization;
-        [rxBits,~,pktStatus]...
-                            = helperBluetoothPracticalReceiver(filteredWaveform,rxCfg);
-    end
-   % Compute BER and PER
-    lengthTx = length(txBits);
-    lengthRx = length(rxBits);
-    lengthMinimum = min(lengthTx,lengthRx)-1;
-    countPreviousPER = countPER;
-    if lengthTx && lengthRx
-        vectorBER = errorRate(txBits(1:lengthMinimum),rxBits(1:lengthMinimum));
-        currentErrors = vectorBER(2)-numErrors;    % Number of errors in current packet
-        if currentErrors || (lengthTx ~= lengthRx) % Check if current packet is in error or not
-            countPER  = countPER+1;                % Increment the PER count
-        end
-        numErrors = vectorBER(2);
-    elseif ~isempty(pktStatus)
-        countPER  = countPER+~pktStatus;           % Increment the PER count
-    else
-        numPktLost = numPktLost+1;
-    end
-
-    % Perform frequency hopping
-    if strcmp(awnFrequencyHopping,"On")
-        chIdx = channelIndex+1;
-        if countPreviousPER ~= countPER
-            errorsBasic(chIdx,3) = errorsBasic(chIdx,3)+1;
-        end
-
-        % Classify the channels
-        if any(inum == (1:floor(numPackets/numPacketsToClassify))*numPacketsToClassify)
-            channelMap = errorsBasic(:,3)/numPacketsToClassify > thresholdPER;
-            if nnz(channelMap) == 0
-                continue;
-            end
-            badChannels = find(channelMap)-1;
-            if length(frequencyHop.UsedChannels)-length(badChannels) < minChannels
-                errorsBasic(badChannels+1,3) = 0;
-                usedChannels = 0:36;
-            else
-                errorsBasic(badChannels+1,3) = 0;
-                usedChannels = setdiff(frequencyHop.UsedChannels,badChannels);
-            end
-            frequencyHop.UsedChannels = usedChannels;
-        end
-    end
-    
-        % Visualize the spectrum and spectrogram. Compute SINR.
-        if strcmp(awnFrequencyHopping,"On") && collisionCount ~= 0
-            sinr(inum) = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
-            
-        elseif (strcmp(awnFrequencyHopping,"Off") && inum < 70) || (strcmp(awnFrequencyHopping,"On") && collisionCount == 0)
-            if inum == 1
-                sinr = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
-            end
-            
-            
-        end
 end
 
 txWaveInt= freqShiftWaveform;
@@ -435,10 +352,13 @@ end
 
 
 startFreq = round(rand()*maxStartFreq/1e6)*1e6 - sampleRate/2 + min(Bandwidths)/2;
+if startFreq <= 0
+    startFreq = 0;
+end 
 
 FrequencyOffsets = [startFreq startFreq+max(Bandwidths)/2 + freqSpace + min(Bandwidths)/2];
-waveInfo.freqPos = FrequencyOffsets + bMatrix;
-disp(waveInfo.freqPos)
+waveInfo.freqPos = FrequencyOffsets' + bMatrix';
+
 waveInfo.SampleRate = sampleRate;
 
 

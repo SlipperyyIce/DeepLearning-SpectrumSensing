@@ -50,7 +50,7 @@ TrBlkOffVec = {1,2,3,4,5,6,7,8};
 % Channel Parameters
 SNRdBVec = {40, 50, 100};   % dB
 SNRdBVec2 = {40, 50,60}; % db
-SNRdBVec3 = {20,30,40,50}; % db
+SNRdBVec3 = {20,30,40,}; % db
 DopplerVec = {0, 10, 500};
 CenterFrequencyVec = 4e9;
 
@@ -99,7 +99,7 @@ parfor parIdx=1:numWorkers
     paramsL = struct();
     paramsL.SCS = scs;
     
-    saveSpectrogramImage(txWaveNoise,40e6,trainDir,'Noise',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
+    %saveSpectrogramImage(txWaveNoise,40e6,trainDir,'Noise',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
    
 
 
@@ -300,7 +300,7 @@ parfor parIdx=1:numWorkers
 
     %Generate Rnadom numbers of WLAN + BT signals
     rng('shuffle');
-    [txWave, waveinfoMultiWLAN,~,multi_label,timepos] = helperSpecSenseMultiWLANSignal(imageSize(2));
+    [txWave, waveinfoMultiWLAN,~,multi_label2,timepos2] = helperSpecSenseMultiWLANSignal(imageSize(2));
     % Add noise
     rng('shuffle');
     SNRdB = SNRdBVec3{randi([1 length(SNRdBVec3)])};
@@ -314,9 +314,9 @@ parfor parIdx=1:numWorkers
     saveSpectrogramImage(rxWave,sr,trainDir,...
       'WLANMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     
-    savePixelLabelImage(timepos, waveinfoMultiWLAN.freqPos, multi_label, {'Noise','NR','LTE','BT','WLAN'}, ...
-      waveinfoMultiWLAN.SampleRate, paramsComb4, trainDir, imageSize, ...
-      frameIdx+(numFramesPerWorker*(parIdx-1)),2)
+    %savePixelLabelImage(timepos2, waveinfoMultiWLAN.freqPos, multi_label2, {'Noise','NR','LTE','BT','WLAN'}, ...
+    %  waveinfoMultiWLAN.SampleRate, paramsComb4, trainDir, imageSize, ...
+    %  frameIdx+(numFramesPerWorker*(parIdx-1)),2)
 
     
 
@@ -396,13 +396,19 @@ data = uint8(zeros(imSize));
 for p=1:length(label)
   pixelValue = floor((find(strcmp(label{p}, pixelClassNames))-1)*255/(numel(pixelClassNames)-1));
   freqPerPixel = sr / imSize(2);
-  %freqPixels = floor((sr/2 + freqPos(:,p)) / freqPerPixel) + 1; %FIX BRO
-  
+  try
+    
+    freqPixels = floor((sr/2 + freqPos(:,p)) / freqPerPixel) + 1; %FIX BRO
+  catch ME
+    disp(freqPos);
+    error('Stopping script due to error: %s')
+   
+  end
   
   if isempty(timePos{p})
    timePixels = 1:imSize(1);
   end
-  %data(timePixels,freqPixels(1):freqPixels(2)) = uint8(pixelValue);
+  data(timePixels,freqPixels(1):freqPixels(2)) = uint8(pixelValue);
 
 end
 
