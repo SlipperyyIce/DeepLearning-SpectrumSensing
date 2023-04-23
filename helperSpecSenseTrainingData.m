@@ -72,7 +72,6 @@ parfor parIdx=1:numWorkers
     frameIdx = 0;
   end
   while frameIdx < numFramesPerWorker
-    % Generate 5G signal
     scs = SCSVec(randi([1 length(SCSVec)])); %#ok<*PFBNS> 
     nrChBW = BandwidthVec(randi([1 length(BandwidthVec)]));
     timeShift = rand()*maxTimeShift;
@@ -167,7 +166,7 @@ parfor parIdx=1:numWorkers
    
     % Save WLAN signal spectrogram and pixel labels
     rng('shuffle');
-    SNRdB = SNRdBVec2{randi([1 length(SNRdBVec)])};
+    SNRdB = SNRdBVec3{randi([1 length(SNRdBVec)])};
     rxWaveWLAN = awgn(txWaveWLAN,SNRdB);
     sr = waveinfoWLAN.SampleRate;
     [rxWaveWLAN,freqOff] = shiftInFrequency(rxWaveWLAN,waveinfoWLAN.Bandwidth,sr,imageSize(2));
@@ -297,7 +296,7 @@ parfor parIdx=1:numWorkers
     savePixelLabelImage(timepos, waveinfoMultiBT.freqPos, multi_label, {'Noise','NR','LTE','BT','WLAN'}, ...
       waveinfoMultiBT.SampleRate, paramsComb3, trainDir, imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)),1)
-
+    
     %Generate Rnadom numbers of WLAN + BT signals
     rng('shuffle');
     [txWave, waveinfoMultiWLAN,~,multi_label2,timepos2] = helperSpecSenseMultiWLANSignal(imageSize(2));
@@ -314,9 +313,9 @@ parfor parIdx=1:numWorkers
     saveSpectrogramImage(rxWave,sr,trainDir,...
       'WLANMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     
-    %savePixelLabelImage(timepos2, waveinfoMultiWLAN.freqPos, multi_label2, {'Noise','NR','LTE','BT','WLAN'}, ...
-    %  waveinfoMultiWLAN.SampleRate, paramsComb4, trainDir, imageSize, ...
-    %  frameIdx+(numFramesPerWorker*(parIdx-1)),2)
+    savePixelLabelImage(timepos2, waveinfoMultiWLAN.freqPos, multi_label2, {'Noise','NR','LTE','BT','WLAN'}, ...
+      waveinfoMultiWLAN.SampleRate, paramsComb4, trainDir, imageSize, ...
+      frameIdx+(numFramesPerWorker*(parIdx-1)),2)
 
     
 

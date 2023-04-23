@@ -16,7 +16,7 @@ rand_index = randi(numel(iwnType));
 iwn(1).SignalType  = iwnType{rand_index}; 
 iwn(1).TxPosition = [20,0,0];      % In meters
 iwn(1).Frequency = 2437e6;         % In Hz
-iwn(1).TxPower = 15;               % In dBm
+iwn(1).TxPower = 5;               % In dBm
 iwn(1).CollisionProbability = 1;   % Probability of collision in time, must be between [0,1]
 
 iwn(2).SignalType = "LE1M";
@@ -247,93 +247,8 @@ for inum = 1:numPackets
     % Frequency shift the waveform by |-freqOffset|
     freqShiftWaveform = helperBLEFrequencyOffset(addIWN2AWN,sampleRate,-freqOffset);
 
-    % Add AWGN
-    soiPower = 20*log10(soiAmplitudeLinear);
-    noisePower = soiPower - snr;
-    splusibyn = 10*log10(var(freqShiftWaveform))-noisePower;
-    noisyWaveform = awgn(freqShiftWaveform,splusibyn,"measured");
-
-    % Apply filter
-    if rem(length(noisyWaveform),sps)
-        remainder = sps-rem(length(noisyWaveform),sps);
-        noisyWaveform = [noisyWaveform;zeros(remainder,1)]; %#ok<AGROW> 
-    end
-    delay = floor(length(firdec.Numerator)/(2*decimationFactor));
-    noisyWaveformPadded = [noisyWaveform;zeros(delay*decimationFactor,1)];
-    filteredWaveform = firdec(noisyWaveformPadded);
-    release(firdec)
-    filteredWaveform = filteredWaveform(1+delay:end)*sqrt(decimationFactor);
-
-    % Recover the data bits
-    if any(strcmp(awnSignalType,["LE1M","LE2M","LE500K","LE125K"]))
-        rxCfg.ChannelIndex = channelIndex;
-        [rxBits,accAddress] = helperBLEPracticalReceiver(filteredWaveform,rxCfg);
-        if isempty(rxBits) || ~isequal(accessAddBits,accAddress)
-            pktStatus = [];
-        end
-    else
-        % Get PHY properties
-        rxCfg.WhitenInitialization = awnWaveformConfig.WhitenInitialization;
-        [rxBits,~,pktStatus]...
-                            = helperBluetoothPracticalReceiver(filteredWaveform,rxCfg);
-    end
-   % Compute BER and PER
-    lengthTx = length(txBits);
-    lengthRx = length(rxBits);
-    lengthMinimum = min(lengthTx,lengthRx)-1;
-    countPreviousPER = countPER;
-    if lengthTx && lengthRx
-        vectorBER = errorRate(txBits(1:lengthMinimum),rxBits(1:lengthMinimum));
-        currentErrors = vectorBER(2)-numErrors;    % Number of errors in current packet
-        if currentErrors || (lengthTx ~= lengthRx) % Check if current packet is in error or not
-            countPER  = countPER+1;                % Increment the PER count
-        end
-        numErrors = vectorBER(2);
-    elseif ~isempty(pktStatus)
-        countPER  = countPER+~pktStatus;           % Increment the PER count
-    else
-        numPktLost = numPktLost+1;
-    end
-
-    % Perform frequency hopping
-    if strcmp(awnFrequencyHopping,"On")
-        chIdx = channelIndex+1;
-        if countPreviousPER ~= countPER
-            errorsBasic(chIdx,3) = errorsBasic(chIdx,3)+1;
-        end
-
-        % Classify the channels
-        if any(inum == (1:floor(numPackets/numPacketsToClassify))*numPacketsToClassify)
-            channelMap = errorsBasic(:,3)/numPacketsToClassify > thresholdPER;
-            if nnz(channelMap) == 0
-                continue;
-            end
-            badChannels = find(channelMap)-1;
-            if length(frequencyHop.UsedChannels)-length(badChannels) < minChannels
-                errorsBasic(badChannels+1,3) = 0;
-                usedChannels = 0:36;
-            else
-                errorsBasic(badChannels+1,3) = 0;
-                usedChannels = setdiff(frequencyHop.UsedChannels,badChannels);
-            end
-            frequencyHop.UsedChannels = usedChannels;
-        end
-    end
-    
-        % Visualize the spectrum and spectrogram. Compute SINR.
-        if strcmp(awnFrequencyHopping,"On") && collisionCount ~= 0
-            sinr(inum) = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
-            % spectrumAnalyzer(iwnWaveform{1})
-        elseif (strcmp(awnFrequencyHopping,"Off") && inum < 70) || (strcmp(awnFrequencyHopping,"On") && collisionCount == 0)
-            if inum == 1
-                sinr = helperBluetoothSINREstimate(snr,awnTxPower,awnFrequency,pathlossdB,iwnConfig,iwnPathloss);
-            end
-            % spectrumAnalyzer(iwnWaveform{1})
-            
-        end
 end
 
-% txWaveInt = circshift(txWaveInt,floor(timeShift*1e-3*sampleRate));
 txWaveInt = circshift(iwnWaveform{1},floor(timeShift*1e-3*sampleRate));
 
 waveInfo.Bandwidth = bandwidth;
