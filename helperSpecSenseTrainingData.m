@@ -18,15 +18,14 @@ function helperSpecSenseTrainingData(numFrames,imageSize,trainDir,numSF,outFs)
 
 %   Copyright 2021 The MathWorks, Inc.
 
-combinedDir = fullfile(trainDir,'LTE_NR');
-if ~exist(combinedDir,'dir')
-  mkdir(combinedDir)
-end
-combinedDir = fullfile(trainDir,'BT_WLAN');
-if ~exist(combinedDir,'dir')
-  mkdir(combinedDir)
-end
+dirNames = {'LTE_NR','BT_BT', 'BT_WLAN', 'BT_MULTI', 'LTE_NR', 'WLAN_MULTI'};
 
+for i = 1:numel(dirNames)
+    combinedDir = fullfile(trainDir, dirNames{i});
+    if ~exist(combinedDir, 'dir')
+        mkdir(combinedDir)
+    end
+end
 files = dir(fullfile(combinedDir,'*.png'));
 
 maxFrameNum = 2;
@@ -49,8 +48,8 @@ TrBlkOffVec = {1,2,3,4,5,6,7,8};
 
 % Channel Parameters
 SNRdBVec = {40, 50, 100};   % dB
-SNRdBVec2 = {40, 50,60}; % db
-SNRdBVec3 = {20,30,40,}; % db
+SNRdBVec2 = {40, 50,60, 100}; % db
+SNRdBVec3 = {20,30,50,100}; % db
 DopplerVec = {0, 10, 500};
 CenterFrequencyVec = 4e9;
 
@@ -269,11 +268,11 @@ parfor parIdx=1:numWorkers
     paramsComb3.BW = waveinfoDoubleBT.Bandwidth;
     paramsComb3.SNRdB = SNRdB;
 
-    saveSpectrogramImage(rxWave,sr,trainDir,...
+    saveSpectrogramImage(rxWave,sr,fullfile(trainDir,'BT_BT'),...
       'BT_BT',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
 
     savePixelLabelImage({[],[]}, freqPos, {'BT','BT'}, {'Noise','NR','LTE','BT','WLAN'}, ...
-      waveinfoDoubleBT.SampleRate, paramsComb3, trainDir, imageSize, ...
+      waveinfoDoubleBT.SampleRate, paramsComb3, fullfile(trainDir,'BT_BT'), imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)),0)
 
     
@@ -290,11 +289,11 @@ parfor parIdx=1:numWorkers
     paramsComb3.BW = waveinfoMultiBT.Bandwidth;
     paramsComb3.SNRdB = SNRdB;
 
-    saveSpectrogramImage(rxWave,sr,trainDir,...
+    saveSpectrogramImage(rxWave,sr,fullfile(trainDir,'BT_MULTI'),...
       'BTMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     
     savePixelLabelImage(timepos, waveinfoMultiBT.freqPos, multi_label, {'Noise','NR','LTE','BT','WLAN'}, ...
-      waveinfoMultiBT.SampleRate, paramsComb3, trainDir, imageSize, ...
+      waveinfoMultiBT.SampleRate, paramsComb3, fullfile(trainDir,'BT_MULTI'), imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)),1)
     
     %Generate Rnadom numbers of WLAN + BT signals
@@ -310,11 +309,11 @@ parfor parIdx=1:numWorkers
     paramsComb4.BW = waveinfoMultiWLAN.Bandwidth;
     paramsComb4.SNRdB = SNRdB;
 
-    saveSpectrogramImage(rxWave,sr,trainDir,...
+    saveSpectrogramImage(rxWave,sr,fullfile(trainDir,'WLAN_MULTI'),...
       'WLANMULTI',imageSize,frameIdx+(numFramesPerWorker*(parIdx-1)));
     
     savePixelLabelImage(timepos2, waveinfoMultiWLAN.freqPos, multi_label2, {'Noise','NR','LTE','BT','WLAN'}, ...
-      waveinfoMultiWLAN.SampleRate, paramsComb4, trainDir, imageSize, ...
+      waveinfoMultiWLAN.SampleRate, paramsComb4, fullfile(trainDir,'WLAN_MULTI'), imageSize, ...
       frameIdx+(numFramesPerWorker*(parIdx-1)),2)
 
     

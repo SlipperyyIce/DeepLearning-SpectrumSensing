@@ -11,7 +11,7 @@ awnPacket = "Disabled";
 awnFrequencyHopping = "Off";
 awnFrequency = 2440*1e6; % In Hz
 
-iwnType = {"802.11b/g with 22 MHz Bandwidth","WLANHESUBandwidth20.bb","802.11g with 20 MHz Bandwidth","802.11n with 20 MHz Bandwidth","802.11n with 40 MHz Bandwidth","802.11ax with 20 MHz Bandwidth",'802.11ax with 40 MHz Bandwidth'};
+iwnType = {"802.11b/g with 22 MHz Bandwidth","802.11g with 20 MHz Bandwidth","802.11n with 20 MHz Bandwidth","802.11n with 40 MHz Bandwidth","802.11ax with 20 MHz Bandwidth",'802.11ax with 40 MHz Bandwidth'};
 rand_index = randi(numel(iwnType)); 
 iwn(1).SignalType  = iwnType{rand_index}; 
 iwn(1).TxPosition = [20,0,0];      % In meters
